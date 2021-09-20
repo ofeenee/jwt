@@ -2,13 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
-const { webcrypto, KeyObject } = crypto;
-const { subtle } = webcrypto;
-
-// const APL = crypto.createPrivateKey(process.env.ACCESS_TOKEN_PRIVATE);
-// const APK = crypto.createPublicKey(process.env.ACCESS_TOKEN_PUBLIC);
-// const RPL = crypto.createPrivateKey(process.env.REFRESH_TOKEN_PRIVATE);
-// const RPK = crypto.createPublicKey(process.env.REFRESH_TOKEN_PUBLIC);
 
 import validator from 'validator';
 const { isJWT } = validator;
@@ -17,9 +10,6 @@ import { SignJWT } from 'jose/jwt/sign';
 import { jwtVerify } from 'jose/jwt/verify';
 import { EncryptJWT } from 'jose/jwt/encrypt';
 import { jwtDecrypt } from 'jose/jwt/decrypt';
-import { generateSecret } from 'jose/util/generate_secret';
-import { generateKeyPair } from 'jose/util/generate_key_pair';
-import { toASCII } from 'punycode';
 
 
 function JWT({
@@ -244,47 +234,6 @@ function JWT({
 
 export default JWT;
 
-// testing and debugging
-try {
-  const test = new JWT();
-  // await test.initSecretKeys();
-  // const theKeys = await test.setSecretKeys({
-  //   accessPrivateKey: process.env.ACCESS_TOKEN_PRIVATE,
-  //   accessPublicKey: process.env.ACCESS_TOKEN_PUBLIC,
-  //   refreshPrivateKey: process.env.REFRESH_TOKEN_PRIVATE,
-  //   refreshPublicKey: process.env.REFRESH_TOKEN_PUBLIC,
-  //   aSecretKey: process.env.ACCESS_SECRET_KEY,
-  //   rSecretKey: process.env.REFRESH_SECRET_KEY
-  // });
-
-  const accessToken = await test.signAccessJWT({name: 'yousif', age: 37});
-  console.log(accessToken);
-
-  const verifyAccessToken = await test.verifyAccessJWT(accessToken);
-  console.log(verifyAccessToken);
-
-  const refreshToken = await test.signRefreshJWT({name: 'yousif', age: 37});
-  console.log(refreshToken);
-
-  const verifyRefreshToken = await test.verifyRefreshJWT(refreshToken);
-  console.log(verifyRefreshToken);
-
-  const encryptAccessToken = await test.encryptAccessJWT({name: 'yousif', age: 37});
-  console.log(encryptAccessToken);
-
-  const decryptAccessToken = await test.decryptAccessJWT(encryptAccessToken);
-  console.log(decryptAccessToken);
-
-  const encryptRefreshToken = await test.encryptRefreshJWT({name: 'yousif', age: 37});
-  console.log(encryptRefreshToken);
-
-  const decryptRefreshToken = await test.decryptRefreshJWT(encryptRefreshToken);
-  console.log(decryptRefreshToken);
-
-
-} catch (error) {
-  console.log(error.message);
-}
 
 // HELPER FUNCTIONS
 function validateJWT(string) {
@@ -299,16 +248,7 @@ function validateJWT(string) {
 
 function setTokens({ privateKey, publicKey, secretKey } = {}) {
   try {
-    // const newAsymmetricPair = await generateKeyPair('ES256');
-    // const newSymmetricKey = await generateSecret('HS256')
     const hash = crypto.createHash('sha256');
-
-
-    // const key = crypto.createSecretKey(hash.digest(secretKey));
-    // console.log(hash.digest(secretKey));
-    // const hmac = crypto.createHmac('sha256', secretKey);
-    // const sign = crypto.createSign(hmac);
-    // console.log(key.export().toString());
 
     const secrets =  Object.create({}, {
       privateKey:{
@@ -333,43 +273,4 @@ function setTokens({ privateKey, publicKey, secretKey } = {}) {
   catch (error) {
     console.log(error.message);
   }
-}
-
-function genTokens() {
-  try {
-
-  }
-  catch (error) {
-
-  }
-}
-
-function expTokens() {
-  try {
-
-  }
-  catch (error) {
-
-  }
-}
-
-try {
-
-
-  // const ACCESS = await setTokens({
-  //   privateKey: ACCESS_PRIVATE_TOKEN,
-  //   publicKey: ACCESS_PUBLIC_TOKEN,
-  //   secretKey: ACCESS_SECRET_KEY
-  // });
-
-  // const REFRESH = await setTokens({
-  //   privateKey: REFRESH_PRIVATE_TOKEN,
-  //   publicKey: REFRESH_PUBLIC_TOKEN,
-  //   secretKey: REFRESH_SECRET_KEY
-  // });
-
-  // console.log(ACCESS.secretKey.export().toString());
-}
-catch (error) {
-  console.log(error.message);
 }
