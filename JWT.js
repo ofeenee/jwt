@@ -11,44 +11,42 @@ import { jwtVerify } from 'jose/jwt/verify';
 import { EncryptJWT } from 'jose/jwt/encrypt';
 import { jwtDecrypt } from 'jose/jwt/decrypt';
 
+import { generateKeyPair } from 'jose/util/generate_key_pair';
+import { generateSecret } from 'jose/util/generate_secret';
 
 function JWT({
-  accessIssuer = 'admin.example.com/access',
-  refreshIssuer = 'admin.example.com/refresh',
-  audience = 'audience.example.com',
-  exp = '1h'} = {}) {
+  issuer = null,
+  audience = null,
+  expiration = null,
+  encrypted = false,
+  subject = null,
+  PRIVATE_TOKEN = process.env.JWT_PRIVATE_TOKEN,
+  PUBLIC_TOKEN = process.env.JWT_PUBLIC_TOKEN,
+  SECRET_KEY = process.env.JWT_SECRET_KEY
+} = {}) {
   try {
-    if (new.target === undefined) return new JWT();
-
-    // load environment variables
-    const {
-      ACCESS_PRIVATE_TOKEN,
-      ACCESS_PUBLIC_TOKEN,
-      ACCESS_SECRET_KEY,
-      REFRESH_PRIVATE_TOKEN,
-      REFRESH_PUBLIC_TOKEN,
-      REFRESH_SECRET_KEY
-    } = process.env;
+    if (new.target === undefined)
+      return new JWT({
+        issuer,
+        audience,
+        expiration,
+        encrypted,
+        subject,
+        PRIVATE_TOKEN,
+        PUBLIC_TOKEN,
+        SECRET_KEY
+      });
 
     const secret = Object.create({}, {
-      access: {
-        value: setTokens({
-          privateKey: ACCESS_PRIVATE_TOKEN,
-          publicKey: ACCESS_PUBLIC_TOKEN,
-          secretKey: ACCESS_SECRET_KEY
-        }),
-        enumerable: true
-      },
-      refresh: {
-        value: setTokens({
-          privateKey: REFRESH_PRIVATE_TOKEN,
-          publicKey: REFRESH_PUBLIC_TOKEN,
-          secretKey: REFRESH_SECRET_KEY
-        }),
-        enumerable: true
-      }
-    });
-
+        keys: {
+          value: setTokens({
+            privateKey: PRIVATE_TOKEN,
+            publicKey: PUBLIC_TOKEN,
+            secretKey: SECRET_KEY
+          }),
+          enumerable: true
+        },
+      });
 
 
     Object.defineProperties(this, {
@@ -57,19 +55,20 @@ function JWT({
         value: validateJWT,
         enumerable: true
       },
-      signAccessJWT: {
-        value: async function generateAccessToken(payload) {
+      signJWT: {
+        value: async function signToken(payload) {
           try {
 
-            const jwt = await new SignJWT(payload)
+            const jwt = new SignJWT(payload)
             .setProtectedHeader({ alg: 'ES256', enc: 'A256GCM'})
-            .setIssuedAt()
-            .setIssuer(accessIssuer)
-            .setAudience(audience)
-            .setExpirationTime(exp)
-              .sign(secret.access.privateKey);
+            .setIssuedAt();
 
-            return jwt;
+            if (issuer) jwt.setIssuer(issuer);
+            if (audience) jwt.setAudience(audience);
+            if (subject) jwt.setSubject(subject);
+            if (expiration) jwt.setExpirationTime(expiration);
+
+            return await jwt.sign(secret.keys.privateKey);
           }
           catch (error) {
             throw error;
@@ -77,32 +76,18 @@ function JWT({
         },
         enumerable: true
       },
-      signRefreshJWT: {
-        value: async function generateRefreshToken(payload) {
+      verifyJWT: {
+        value: async function verifyToken(token) {
           try {
-            const jwt = await new SignJWT(payload)
-              .setProtectedHeader({ alg: 'ES256', enc: 'A256GCM' })
-              .setIssuedAt()
-              .setIssuer(refreshIssuer)
-              .setAudience(audience)
-              .setExpirationTime(exp)
-              .sign(secret.refresh.privateKey);
+            let claims = {};
+            if (issuer) claims.issuer = issuer;
+            if (audience) claims.audience = audience;
+            if (Object.keys(claims)) claims = undefined;
 
-            return jwt;
-          }
-          catch (error) {
-            error;
-          }
-        },
-        enumerable: true
-      },
-      verifyAccessJWT: {
-        value: async function verifyAccessToken(accessToken) {
-          try {
-            const { payload, protectedHeader } = await jwtVerify(accessToken, secret.access.publicKey, {
-              issuer: accessIssuer,
-              audience: audience
-            });
+            const {
+              payload,
+              protectedHeader
+            } = await jwtVerify(token, secret.keys.publicKey, claims);
 
             return {protectedHeader, payload};
           }
@@ -112,34 +97,19 @@ function JWT({
         },
         enumerable: true
       },
-      verifyRefreshJWT: {
-        value: async function verifyRefreshToken(refreshToken) {
+      encryptJWT: {
+        value: async function encryptToken(payload) {
           try {
-            const { payload, protectedHeader } = await jwtVerify(refreshToken, secret.refresh.publicKey, {
-              issuer: refreshIssuer,
-              audience: audience
-            });
-
-            return { protectedHeader, payload };
-          }
-          catch (error) {
-            throw error;
-          }
-        },
-        enumerable: true
-      },
-      encryptAccessJWT: {
-        value: async function encryptAccessToken(payload) {
-          try {
-            const jwt = await new EncryptJWT(payload)
+            const jwt = new EncryptJWT(payload)
             .setProtectedHeader({ alg: 'dir', enc: 'A256GCM'})
-            .setIssuedAt()
-            .setIssuer(accessIssuer + '/encrypted')
-            .setAudience(audience)
-            .setExpirationTime(exp)
-            .encrypt(secret.access.secretKey);
+            .setIssuedAt();
 
-            return jwt;
+            if (issuer) jwt.setIssuer(issuer);
+            if (audience) jwt.setAudience(audience);
+            if (subject) jwt.setSubject(subject);
+            if (expiration) jwt.setExpirationTime(expiration);
+
+            return await jwt.encrypt(secret.keys.secretKey);
           }
           catch (error) {
             throw error;
@@ -147,50 +117,21 @@ function JWT({
         },
         enumerable: true
       },
-      encryptRefreshJWT: {
-        value: async function encryptAccessToken(payload) {
+      decryptJWT: {
+        value: async function decryptToken(token) {
           try {
-            const jwt = await new EncryptJWT(payload)
-              .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
-              .setIssuedAt()
-              .setIssuer(refreshIssuer + '/encrypted')
-              .setAudience(audience)
-              .setExpirationTime(exp)
-              .encrypt(secret.refresh.secretKey);
 
-            return jwt;
-          }
-          catch (error) {
-            error;
-          }
-        },
-        enumerable: true
-      },
-      decryptAccessJWT: {
-        value: async function decryptAccessToken(accessToken) {
-          try {
-            const { payload, protectedHeader } = await jwtDecrypt(accessToken, secret.access.secretKey, {
-              issuer: accessIssuer + '/encrypted',
-              audience: audience
-            });
+            let claims = {};
+            if (issuer) claims.issuer = issuer;
+            if (audience) claims.audience = audience;
+            if (Object.keys(claims)) claims = undefined;
+
+            const {
+              payload,
+              protectedHeader
+            } = await jwtDecrypt(token, secret.keys.secretKey, claims);
 
             return {protectedHeader, payload};
-          }
-          catch (error) {
-            throw error;
-          }
-        },
-        enumerable: true
-      },
-      decryptRefreshJWT: {
-        value: async function decryptRefreshToken(refreshToken) {
-          try {
-            const { payload, protectedHeader } = await jwtDecrypt(refreshToken, secret.refresh.secretKey, {
-              issuer: refreshIssuer + '/encrypted',
-              audience: audience
-            });
-
-            return { protectedHeader, payload };
           }
           catch (error) {
             throw error;
@@ -201,12 +142,11 @@ function JWT({
     });
 
     return Object.create(this, {
-      set: {
-        value: async (string) => {
+      sign: {
+        value: async (payload) => {
           try {
-            // if string value is invalid (not strong password)
-            if (!validateJWT(string)) throw new Error('jwt value is invalid.');
-
+            if (encrypted) return await this.encryptJWT(payload);
+            else return await this.signJWT(payload);
           }
           catch (error) {
             throw error;
@@ -214,11 +154,12 @@ function JWT({
         },
         enumerable: true
       },
-      get: {
-        value: () => {
+      verify: {
+        value: async (token) => {
           try {
-            if (this.jwt) return this.jwt;
-            else return null;
+            if (encrypted) return await this.decryptJWT(token);
+            else return await this.verifyJWT(token);
+
           } catch (error) {
             throw error;
           }
@@ -271,6 +212,47 @@ function setTokens({ privateKey, publicKey, secretKey } = {}) {
     return secrets;
   }
   catch (error) {
-    console.log(error.message);
+    console.log(error);
   }
 }
+
+async function generateTokens() {
+  try {
+    const {
+      privateKey,
+      publicKey
+    } = await generateKeyPair('HS256');
+    const secretKey = await generateSecret('ES256')
+
+    return {
+      privateKey,
+      publicKey,
+      secretKey
+    };
+  }
+  catch (error) {
+    throw error;
+  }
+}
+
+
+
+
+// try {
+//   const jwt = new JWT({
+//     PRIVATE_TOKEN: process.env.ACCESS_PRIVATE_TOKEN,
+//     PUBLIC_TOKEN: process.env.ACCESS_PUBLIC_TOKEN,
+//     SECRET_KEY: process.env.ACCESS_SECRET_KEY,
+//     encrypted: false,
+//     expiration: '1h',
+//     subject: crypto.randomUUID()
+//   });
+//   console.log(jwt);
+
+//   const token = await jwt.sign({name: 'yousif', age: '37'});
+//   console.log(token);
+//   const payload = await jwt.verify(token);
+//   console.log(payload);
+// } catch (error) {
+//   console.log(error.message);
+// }
