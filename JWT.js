@@ -37,17 +37,19 @@ function JWT({
         SECRET_KEY
       });
 
+
     const secret = Object.create({}, {
         keys: {
           value: setTokens({
             privateKey: PRIVATE_TOKEN,
             publicKey: PUBLIC_TOKEN,
             secretKey: SECRET_KEY
-          }),
+          }) ?? genTokens(),
           enumerable: true
         },
       });
 
+      console.log('SET:', secret.keys);
 
     Object.defineProperties(this, {
 
@@ -164,6 +166,7 @@ function JWT({
       sign: {
         value: async (payload) => {
           try {
+
             if (encrypted) return await this.encryptJWT(payload);
             else return await this.signJWT(payload);
           }
@@ -210,7 +213,9 @@ function setTokens({ privateKey, publicKey, secretKey } = {}) {
   try {
     const hash = crypto.createHash('sha256');
 
-    const secrets =  Object.create({}, {
+    if (!privateKey || !publicKey || !secretKey) return null;
+
+    const keys =  Object.create({}, {
       privateKey:{
         value: crypto.createPrivateKey(privateKey),
         enumerable: true,
@@ -228,21 +233,55 @@ function setTokens({ privateKey, publicKey, secretKey } = {}) {
       }
     });
 
-    return secrets;
+    return keys;
   }
   catch (error) {
     console.log(error);
   }
 }
 
-async function generateTokens() {
+function genTokens() {
   try {
-    const {
-      privateKey,
-      publicKey
-    } = await generateKeyPair('HS256');
-    const secretKey = await generateSecret('ES256')
 
+    const hash = crypto.createHash('sha256');
+
+    const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', {
+      modulusLength: 4096,
+      namedCurve: 'prime256v1',
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem',
+        cipher: 'aes-256-cbc',
+        passphrase: 'kuwait123'
+      }
+    });
+
+    const secretKey = crypto.generateKeySync('aes', {length: 256});
+    // console.log(key.export().toString('hex'));
+
+    const secrets = Object.create({}, {
+      privateKey: {
+        value: crypto.createPrivateKey({key: privateKey, passphrase: 'kuwait123'},),
+        enumerable: true,
+        configurable: true
+      },
+      publicKey: {
+        value: crypto.createPublicKey(publicKey),
+        enumerable: true,
+        configurable: true
+      },
+      secretKey: {
+        value: crypto.createSecretKey(hash.digest(secretKey)),
+        enumerable: true,
+        configurable: true
+      }
+    });
+
+    return secrets;
     return {
       privateKey,
       publicKey,
@@ -253,8 +292,6 @@ async function generateTokens() {
     throw error;
   }
 }
-
-
 
 
 // try {
