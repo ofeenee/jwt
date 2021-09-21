@@ -59,14 +59,23 @@ function JWT({
         value: async function signToken(payload) {
           try {
 
-            const jwt = new SignJWT(payload)
+            const {iss, aud, sub, exp, ...other} = payload;
+
+            const jwt = new SignJWT(other)
             .setProtectedHeader({ alg: 'ES256', enc: 'A256GCM'})
             .setIssuedAt();
 
-            if (issuer) jwt.setIssuer(issuer);
-            if (audience) jwt.setAudience(audience);
-            if (subject) jwt.setSubject(subject);
-            if (expiration) jwt.setExpirationTime(expiration);
+            if (iss) jwt.setIssuer(iss);
+            else if (issuer) jwt.setIssuer(issuer);
+
+            if (aud) jwt.setAudience(aud);
+            else if (audience) jwt.setAudience(audience);
+
+            if (sub) jwt.setSubject(sub);
+            else if (subject) jwt.setSubject(subject);
+
+            if (exp) jwt.setExpirationTime(exp);
+            else if (expiration) jwt.setExpirationTime(expiration);
 
             return await jwt.sign(secret.keys.privateKey);
           }
@@ -100,14 +109,24 @@ function JWT({
       encryptJWT: {
         value: async function encryptToken(payload) {
           try {
-            const jwt = new EncryptJWT(payload)
+
+            const {iss, aud, sub, exp, ...other} = payload
+
+            const jwt = new EncryptJWT(other)
             .setProtectedHeader({ alg: 'dir', enc: 'A256GCM'})
             .setIssuedAt();
 
-            if (issuer) jwt.setIssuer(issuer);
-            if (audience) jwt.setAudience(audience);
-            if (subject) jwt.setSubject(subject);
-            if (expiration) jwt.setExpirationTime(expiration);
+            if (iss) jwt.setIssuer(iss);
+            else if (issuer) jwt.setIssuer(issuer);
+
+            if (aud) jwt.setAudience(aud);
+            else if (audience) jwt.setAudience(audience);
+
+            if (sub) jwt.setSubject(sub);
+            else if (subject) jwt.setSubject(subject);
+
+            if (exp) jwt.setExpirationTime(exp);
+            else if (expiration) jwt.setExpirationTime(expiration);
 
             return await jwt.encrypt(secret.keys.secretKey);
           }
