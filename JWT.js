@@ -2,6 +2,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 import validator from 'validator';
 const { isJWT } = validator;
@@ -14,15 +20,15 @@ import { jwtDecrypt } from 'jose/jwt/decrypt';
 import { generateKeyPair } from 'jose/util/generate_key_pair';
 import { generateSecret } from 'jose/util/generate_secret';
 
+
+
 function JWT({
   issuer = null,
   audience = null,
   expiration = null,
   encrypted = false,
   subject = null,
-  PRIVATE_TOKEN = process.env.JWT_PRIVATE_TOKEN,
-  PUBLIC_TOKEN = process.env.JWT_PUBLIC_TOKEN,
-  SECRET_KEY = process.env.JWT_SECRET_KEY
+  path = 'secrets'
 } = {}) {
   try {
     if (new.target === undefined)
@@ -32,24 +38,18 @@ function JWT({
         expiration,
         encrypted,
         subject,
-        PRIVATE_TOKEN,
-        PUBLIC_TOKEN,
-        SECRET_KEY
+        path
       });
 
 
     const secret = Object.create({}, {
         keys: {
-          value: setTokens({
-            privateKey: PRIVATE_TOKEN,
-            publicKey: PUBLIC_TOKEN,
-            secretKey: SECRET_KEY
-          }) ?? genTokens(),
+          value: setTokens(path) ?? genTokens(path),
           enumerable: true
         },
       });
 
-      console.log('SET:', secret.keys);
+      // console.log('SET:', secret.keys);
 
     Object.defineProperties(this, {
 
@@ -204,46 +204,76 @@ function validateJWT(string) {
     if (typeof string !== 'string' || !string) throw new Error('value is invalid.');
     return isJWT(string);
   }
-  catch (error) {
+  catch (error) {``
     throw error;
   }
 }
 
-function setTokens({ privateKey, publicKey, secretKey } = {}) {
+function setTokens(path) {
   try {
+    const pathDirectory = join(__dirname, path);
+    const pathPassphrase = join(pathDirectory, '.passphrase.jwt');
+    const pathPrivateKey = join(pathDirectory, '.privateKey.jwt');
+    const pathPublicKey = join(pathDirectory, '.publicKey.jwt');
+    const pathSecretKey = join(pathDirectory, '.secretKey.jwt');
+
     const hash = crypto.createHash('sha256');
+    if (
+      fs.existsSync(pathDirectory)
+      &&
+      fs.existsSync(pathPassphrase)
+      &&
+      fs.existsSync(pathPrivateKey)
+      &&
+      fs.existsSync(pathPublicKey)
+      &&
+      fs.existsSync(pathSecretKey)
+      ) {
 
-    if (!privateKey || !publicKey || !secretKey) return null;
+      const passphrase = fs.readFileSync(pathPassphrase).toString();
+      const privateKey = fs.readFileSync(pathPrivateKey).toString();
+      const publicKey = fs.readFileSync(pathPublicKey).toString();
+      const secretKey = fs.readFileSync(pathSecretKey).toString();
 
-    const keys =  Object.create({}, {
-      privateKey:{
-        value: crypto.createPrivateKey(privateKey),
-        enumerable: true,
-        configurable: true
-      },
-      publicKey: {
-        value: crypto.createPublicKey(publicKey),
-        enumerable: true,
-        configurable: true
-      },
-      secretKey: {
-        value: crypto.createSecretKey(hash.digest(secretKey)),
-        enumerable: true,
-        configurable: true
-      }
-    });
-
-    return keys;
+      // console.log({passphrase,privateKey, publicKey, secretKey});
+        return Object.create({}, {
+          privateKey:{
+            value: crypto.createPrivateKey({key: privateKey, passphrase}),
+            enumerable: true,
+            configurable: true
+          },
+          publicKey: {
+            value: crypto.createPublicKey(publicKey),
+            enumerable: true,
+            configurable: true
+          },
+          secretKey: {
+            value: crypto.createSecretKey(hash.digest(secretKey)),
+            enumerable: true,
+            configurable: true
+          }
+        });
+  }
+    else return null
   }
   catch (error) {
     console.log(error);
   }
 }
 
-function genTokens() {
+function genTokens(path) {
   try {
 
+    const pathDirectory = join(__dirname, path);
+    const pathPassphrase = join(pathDirectory, '.passphrase.jwt');
+    const pathPrivateKey = join(pathDirectory, '.privateKey.jwt');
+    const pathPublicKey = join(pathDirectory, '.publicKey.jwt');
+    const pathSecretKey = join(pathDirectory, '.secretKey.jwt');
+
     const hash = crypto.createHash('sha256');
+    const key = crypto.generateKeySync('aes', {length: 256});
+    const secretKey = hash.digest(key);
+    const passphrase = crypto.randomBytes(64).toString('base64');
 
     const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', {
       modulusLength: 4096,
@@ -256,16 +286,14 @@ function genTokens() {
         type: 'pkcs8',
         format: 'pem',
         cipher: 'aes-256-cbc',
-        passphrase: 'kuwait123'
+        passphrase: passphrase
       }
     });
 
-    const secretKey = crypto.generateKeySync('aes', {length: 256});
-    // console.log(key.export().toString('hex'));
 
     const secrets = Object.create({}, {
       privateKey: {
-        value: crypto.createPrivateKey({key: privateKey, passphrase: 'kuwait123'},),
+        value: crypto.createPrivateKey({key: privateKey, passphrase: passphrase},),
         enumerable: true,
         configurable: true
       },
@@ -275,18 +303,22 @@ function genTokens() {
         configurable: true
       },
       secretKey: {
-        value: crypto.createSecretKey(hash.digest(secretKey)),
+        value: crypto.createSecretKey(secretKey),
         enumerable: true,
         configurable: true
       }
     });
 
+    if (!fs.existsSync(pathDirectory)) fs.mkdirSync(pathDirectory);
+    fs.writeFileSync(pathPassphrase, passphrase);
+    fs.writeFileSync(pathPrivateKey, privateKey);
+    fs.writeFileSync(pathPublicKey, publicKey);
+    fs.writeFileSync(pathSecretKey, secretKey.toString('base64'));
+
+
+
     return secrets;
-    return {
-      privateKey,
-      publicKey,
-      secretKey
-    };
+
   }
   catch (error) {
     throw error;
@@ -295,17 +327,8 @@ function genTokens() {
 
 
 // try {
-//   const jwt = new JWT({
-//     PRIVATE_TOKEN: process.env.ACCESS_PRIVATE_TOKEN,
-//     PUBLIC_TOKEN: process.env.ACCESS_PUBLIC_TOKEN,
-//     SECRET_KEY: process.env.ACCESS_SECRET_KEY,
-//     encrypted: false,
-//     expiration: '1h',
-//     subject: crypto.randomUUID()
-//   });
-//   console.log(jwt);
-
-//   const token = await jwt.sign({name: 'yousif', age: '37'});
+//   const jwt = new JWT({encrypted: true});
+//   const token = await jwt.sign({name: 'yousif'});
 //   console.log(token);
 //   const payload = await jwt.verify(token);
 //   console.log(payload);
