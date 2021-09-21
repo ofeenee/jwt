@@ -4,16 +4,6 @@ const {isJWT} = validator;
 
 import JWT from '../JWT.js';
 
-const {
-ACCESS_PRIVATE_TOKEN,
-ACCESS_PUBLIC_TOKEN,
-ACCESS_SECRET_KEY,
-REFRESH_PRIVATE_TOKEN,
-REFRESH_PUBLIC_TOKEN,
-REFRESH_SECRET_KEY
-} = process.env
-
-
 
 describe(`new JWT({encrypted: false})`, function() {
   let token;
@@ -22,6 +12,7 @@ describe(`new JWT({encrypted: false})`, function() {
   const audience = 'Debuggers';
   const subject = '123';
   const expiration = '2h';
+  const path = 'plain'
 
   const user = {
     name: 'yousif',
@@ -30,9 +21,7 @@ describe(`new JWT({encrypted: false})`, function() {
   }
 
   const jwt = JWT({
-    PRIVATE_TOKEN: ACCESS_PRIVATE_TOKEN,
-    PUBLIC_TOKEN: ACCESS_PUBLIC_TOKEN,
-    SECRET_KEY: ACCESS_SECRET_KEY,
+    path,
     encrypted: false,
     expiration,
     issuer,
@@ -121,6 +110,7 @@ describe(`new JWT({encrypted: true})`, function() {
   const issuer = 'Ofeenee';
   const audience = 'Debuggers';
   const subject = '123';
+  const path = 'encrypted'
 
   const user = {
     name: 'yousif',
@@ -129,9 +119,7 @@ describe(`new JWT({encrypted: true})`, function() {
   }
 
   const jwt = JWT({
-    PRIVATE_TOKEN: REFRESH_PRIVATE_TOKEN,
-    PUBLIC_TOKEN: REFRESH_PUBLIC_TOKEN,
-    SECRET_KEY: REFRESH_SECRET_KEY,
+    path,
     encrypted: true,
     expiration,
     issuer,
