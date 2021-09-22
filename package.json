@@ -1,5 +1,5 @@
 {
-  "name": "jwt",
+  "name": "@ofeenee/jwt",
   "type": "module",
   "version": "0.0.1",
   "description": "a class for validating, verifying, and managing a jwt... and more.",
