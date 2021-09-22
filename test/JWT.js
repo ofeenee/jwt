@@ -4,6 +4,8 @@ const {isJWT} = validator;
 
 import JWT from '../JWT.js';
 
+// test needs a lot of work
+// still work in progress
 
 describe(`new JWT({encrypted: false})`, function() {
   let token;
