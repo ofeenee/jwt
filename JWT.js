@@ -28,7 +28,7 @@ function JWT({
   expiration = null,
   encrypted = false,
   subject = null,
-  path = 'secrets'
+  path = '.secrets'
 } = {}) {
   try {
     if (new.target === undefined)
