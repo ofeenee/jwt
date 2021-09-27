@@ -17,10 +17,6 @@ import { jwtVerify } from 'jose/jwt/verify';
 import { EncryptJWT } from 'jose/jwt/encrypt';
 import { jwtDecrypt } from 'jose/jwt/decrypt';
 
-// import { generateKeyPair } from 'jose/util/generate_key_pair';
-// import { generateSecret } from 'jose/util/generate_secret';
-
-
 
 function JWT({
   issuer = null,
@@ -48,8 +44,6 @@ function JWT({
           enumerable: true
         },
       });
-
-      // console.log('SET:', secret.keys);
 
     Object.defineProperties(this, {
 
@@ -201,7 +195,7 @@ export default JWT;
 // HELPER FUNCTIONS
 function validateJWT(string) {
   try {
-    if (typeof string !== 'string' || !string) throw new Error('value is invalid.');
+    if (typeof string !== 'string' || !string) return false;
     return isJWT(string);
   }
   catch (error) {``
@@ -235,7 +229,6 @@ function setTokens(path) {
       const publicKey = fs.readFileSync(pathPublicKey).toString();
       const secretKey = fs.readFileSync(pathSecretKey).toString();
 
-      // console.log({passphrase,privateKey, publicKey, secretKey});
         return Object.create({}, {
           privateKey:{
             value: crypto.createPrivateKey({key: privateKey, passphrase}),
@@ -324,14 +317,3 @@ function genTokens(path) {
     throw error;
   }
 }
-
-
-// try {
-//   const jwt = new JWT({encrypted: true});
-//   const token = await jwt.sign({name: 'yousif'});
-//   console.log(token);
-//   const payload = await jwt.verify(token);
-//   console.log(payload);
-// } catch (error) {
-//   console.log(error.message);
-// }
